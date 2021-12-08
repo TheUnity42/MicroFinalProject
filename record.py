@@ -24,13 +24,11 @@ options_dict = {
 
 
 
-def record(opt):
-    audio = pyaudio.PyAudio()
+def record(opt, audio):    
 
     # create pyaudio stream object
     stream = audio.open(format=opt['format'], rate=opt['sample_rate'], channels=opt['chans'], input_device_index=opt['dev_index'], input=True, frames_per_buffer=opt['chunk_size'])
 
-    print("Recording...")
     frames = []
 
     for i in range(0, (opt['sample_rate']//opt['chunk_size'])*opt['record_secs']):
@@ -75,9 +73,11 @@ def main(argv):
         print(help_str)
         exit(1)
 
-    print(f"Preparing to record {options_dict['record_secs']} seconds to {options_dict['filename']}...")
+    audio = pyaudio.PyAudio()
 
-    record(options_dict)
+    print('\n', f"Recording {options_dict['record_secs']} seconds to {options_dict['filename']}...", sep='')
+
+    record(options_dict, audio)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
