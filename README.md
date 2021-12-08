@@ -5,7 +5,7 @@
 <code>pi@raspberrypi:~ $ sudo pip3 install pyaudio</code>
 
 <h2>Setup</h2>
-<p>Running pyaudiotests.py will give a list of available audio devices. Theyre position in the list is the index. That needs to be passed to the input[output]_device_index parameter in both the pyaudio stream calls</p>
+<p>Running pyaudiotests.py will give a list of available audio devices. Their position in the list is the index. That needs to be passed to the input[output]_device_index parameter in both the pyaudio stream calls</p>
 
 <h2>Useful Commands</h2>
 <p>Lists audio devices for playback: <code>~ $ aplay -l</code></br>
