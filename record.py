@@ -1,11 +1,11 @@
 import pyaudio
 import wave
 
-form_1 = pyaudio.paInt16
+form_1 = pyaudio.paInt32
 chans = 1
-sample_rate = 44100
+sample_rate = 48000
 chunk = 4096
-record_secs = 3
+record_secs = 5
 dev_index = 1
 wav_output_filename = 'test1.wav'
 
@@ -19,6 +19,7 @@ frames = []
 
 for i in range(0, (sample_rate//chunk)*record_secs):
     data = stream.read(chunk)
+    
     frames.append(data)
     
 print("Finished Recording.")
