@@ -4,9 +4,19 @@ import wave
 import sys
 import getopt
 import matplotlib.pyplot as plt
+from matplotlib import widgets
 import threading
 import time
 import logging
+
+global raise_exception
+
+global options
+options = {
+    "max_volume": 100000,
+    "min_volume": 0,
+    "default_volume": 30000,
+}
 
 
 class AtomicArray:
@@ -27,7 +37,62 @@ class AtomicArray:
         with self._lock:
             return self.array
 
-def play_audio(config: dict, raise_exception):
+class AtomicDict:
+    def __init__(self, init_dict={}):
+        self.dict = init_dict
+        self._lock = threading.Lock()
+
+    def set(self, key, value):
+        with self._lock:
+            self.dict[key] = value
+
+    def get(self, key):
+        with self._lock:
+            return self.dict[key]
+    
+    def __getitem__(self, key):
+        with self._lock:
+            return self.dict[key]
+
+    def __setitem__(self, key, value):
+        with self._lock:
+            self.dict[key] = value
+
+
+def fadefunc(x, framerate, rate=2):
+    """
+    Channel fade function.
+
+    Parameters
+    ----------
+    x : ndarray of sample positions
+    rate : rate of fade in samples
+
+    Returns
+    -------
+    ndarray of values 0-1, for relative fade between left and right channels
+    """
+    return (np.sin(rate * x * np.pi / framerate) + 1) / 2
+
+
+def exp_distort(v, window=2):
+    """
+    Exponential distortion function.
+
+    Parameters
+    ----------
+    x : ndarray of sample positions
+    rate : rate of distortion in samples
+
+    Returns
+    -------
+    ndarray of values 0-1, for relative distortion
+    """
+    ratio = 1 - np.exp(v-window) - np.exp(-v-window)
+    return ratio
+
+
+def play_audio(config: AtomicDict, raise_exception):
     """
         Plays an audio file
 
@@ -52,7 +117,7 @@ def play_audio(config: dict, raise_exception):
                 array to append chunk data to
             - effects: dict
                 dictionary of effects to be applied to the audio file
-    
+
         raise_exception : function
             if True, will halt the thread
 
@@ -74,43 +139,26 @@ def play_audio(config: dict, raise_exception):
 
     data = wf.readframes(config['chunk'])
 
-    def fadefunc(x, rate=2):
-        """
-        Channel fade function.
-
-        Parameters
-        ----------
-        x : ndarray of sample positions
-        rate : rate of fade in samples
-
-        Returns
-        -------
-        ndarray of values 0-1, for relative fade between left and right channels
-        """
-        return (np.sin(rate * x * np.pi / wf.getframerate()) + 1) / 2
-
-    def exp_distort(v, window=2):
-        """
-        Exponential distortion function.
-
-        Parameters
-        ----------
-        x : ndarray of sample positions
-        rate : rate of distortion in samples
-
-        Returns
-        -------
-        ndarray of values 0-1, for relative distortion
-        """
-        ratio = 1 - np.exp(v-window) - np.exp(-v-window)
-        return ratio
-
     last_max = 0
 
     # stores the position of each sample (in frames)
     count = np.arange(0, config['chunk'])
 
+    
+    M = int(config['effects']['delay_secs'] * wf.getframerate())
+    D = np.zeros(M)
+    ptr = 0
+
+    def delayline(x, ptr):
+        y = D[ptr]
+        D[ptr] = x
+        ptr = (ptr + 1) % M
+        return y, ptr
+
     while len(data) > 0:
+        # read effect values
+        fade = config['effects']['fade']
+
         # read data from buffer into a mutable numpy array
         buffer = np.frombuffer(data, dtype=np.int16).copy()
 
@@ -128,21 +176,28 @@ def play_audio(config: dict, raise_exception):
         # isolates the right channel. [1::2] will take every other element, starting at 1
         right = buffer[1::2]
 
-        fade = fadefunc(count, 2)[:len(buffer) // 2]
-        count += config['chunk']
-
         # multiply the left and right channels by the fade value
-        # left[:] will modify the left channel in place, mutating the original buffer array
-        # note the cast to np.int16, numpy really wants it to be a float32
-        # left[:] = (left[:] * fade)
-        # right[:] will modify the right channel in place, mutating the original buffer array
-        # right[:] = (right[:] * (1-fade))
+        if fade != 0.5:
+            left = left * (1 - fade)
+            right = right * fade
+    
+        # recombine the left and right channels
+        buffer = np.empty((left.size + right.size,), dtype=right.dtype)
+        buffer[0::2] = left
+        buffer[1::2] = right
 
         # distort the output
         distort = exp_distort(buffer, 2)[:len(buffer)]
         buffer = buffer * distort
 
         config['array'].append(buffer)
+
+        # add in old buffer
+
+        if M > 0:
+            for i in range(len(buffer)):
+                v, ptr = delayline(buffer[i], ptr)
+                buffer[i] += config['effects']['delay_amount'] * v
 
         buffer *= config['volume']
 
@@ -156,7 +211,7 @@ def play_audio(config: dict, raise_exception):
         # read the next chunk of data from the file
         data = wf.readframes(config['chunk'])
 
-    print("* done *")
+    logging.info("* done *")
 
     stream.stop_stream()
     stream.close()
@@ -183,25 +238,32 @@ def nearestEvenDenominator(number, denominator):
         denominator -= 1
     return denominator
 
+
 def run(config, data_array):
+    global raise_exception
     raise_exception = False
 
-    def handle_close_event(event): # FIXME: why this no worky?
+    def handle_close_event(event):  # FIXME: why this no worky?
         global raise_exception
         raise_exception = True
+
+    def raise_exception_func():
+        global raise_exception
+        return raise_exception
 
     fig, ax = plt.subplots(1, 2, figsize=(8, 4))
     fig.tight_layout(pad=3)
 
+    plt.subplots_adjust(bottom=0.4)
+
     fig.canvas.mpl_connect('close_event', handle_close_event)
 
     playback_thread = threading.Thread(target=play_audio, args=(
-        config, lambda: raise_exception), daemon=True)   
+        config, raise_exception_func), daemon=True)
 
-
-    sliding_window_size = 50000
-    window_subsample_rate = 64
-    plot_sample_rate = 100
+    sliding_window_size = 48000*2
+    window_subsample_rate = 128
+    plot_sample_rate = 60
 
     ax[0].set_xlabel('Frames')
     ax[0].set_ylabel('Amplitude')
@@ -215,16 +277,29 @@ def run(config, data_array):
     ax[1].set_ylim([-1, 1])
     ax[1].set_xlim([0, sliding_window_size//(2*window_subsample_rate)])
 
-    plot_points_left = ax[0].plot(np.arange(sliding_window_size//2), np.zeros(sliding_window_size//2))[0]
-    plot_points_right = ax[1].plot(np.arange(sliding_window_size//2), np.zeros(sliding_window_size//2))[0]
+    plot_points_left = ax[0].plot(
+        np.arange(sliding_window_size//2), np.zeros(sliding_window_size//2))[0]
+    plot_points_right = ax[1].plot(
+        np.arange(sliding_window_size//2), np.zeros(sliding_window_size//2))[0]
+
+
+    vol_ax = plt.axes([0.10, 0.05, 0.32, 0.03])
+    fader_ax = plt.axes([0.10, 0.10, 0.32, 0.03])
+    vol_slider = widgets.Slider(vol_ax, 'Volume', valinit=config['volume'], valmin=options['min_volume'], valmax=options['max_volume'], valstep=1000)
+    fader_slider = widgets.Slider(fader_ax, 'Fade Side', valinit=config['effects']['fade'], valmin=0, valmax=1, valstep=0.1)
     
+    def update(effect):
+        def update_func(val):
+            config['effects'][effect] = val
+            logging.info(f"Updated {effect} to {val}")
+        return update_func
+
+    fader_slider.on_changed(update('fade'))   
+    vol_slider.on_changed(update('volume'))
+
     plt.ion()
     plt.show()
     plt.pause(0.1)
-
-    config['effects'] = {}
-    config['effects']['volume_roll_rate'] = 0.05
-
 
     time.sleep(0.5)
     playback_thread.start()
@@ -232,18 +307,21 @@ def run(config, data_array):
     # cache background
     background = fig.canvas.copy_from_bbox(ax[0].bbox)
 
-
     try:
         while playback_thread.is_alive():
             # update the data
-            window_data_left = subsample(data_array.get()[-sliding_window_size::2], 2)
+            window_data = data_array.get()[-sliding_window_size:]
+
+            window_data_left = subsample(window_data[::2], 2)
 
             plot_points_left.set_data(
                 np.arange(window_data_left.shape[0]), window_data_left)
 
-            window_data_right = subsample(data_array.get()[-sliding_window_size+1::2], 2)
+            window_data_right = subsample(
+                window_data[-sliding_window_size+1::2], 2)
 
-            plot_points_right.set_data(np.arange(window_data_right.shape[0]), window_data_right)
+            plot_points_right.set_data(
+                np.arange(window_data_right.shape[0]), window_data_right)
 
             # rebuild plot
             fig.canvas.restore_region(background)
@@ -255,16 +333,14 @@ def run(config, data_array):
             # time.sleep(1/plot_sample_rate)
     except KeyboardInterrupt:
         raise_exception = True
-        print("Interupted by user")
+        logging.info("Interupted by user")
         playback_thread.join()
         sys.exit(1)
 
     # wait for the playback thread to finish
     playback_thread.join()
 
-    print(len(data_array.get()))
-
-    sys.exit(0)
+    logging.info(len(data_array.get()))
 
 
 def main(argv):
@@ -274,11 +350,18 @@ def main(argv):
     config = {
         'filename': '',
         'device': 0,
-        'volume': 25000,
+        'volume': options['default_volume'],
         'chunk': 1024,
         'duration': 0,
-        'array': data_array        
+        'array': data_array
     }
+    config = AtomicDict(config)
+
+    config['effects'] = AtomicDict()
+    config['effects']['volume_roll_rate'] = 0.05
+    config['effects']['fade'] = 0.5
+    config['effects']['delay_secs'] = 0.1
+    config['effects']['delay_amount'] = 0.5
 
     try:
         opts, args = getopt.getopt(
@@ -301,10 +384,13 @@ def main(argv):
         print('wavPlayer.py -i <inputfile> -d <device_index> -v <volume>')
         sys.exit(2)
 
-    print('Input file is "', config['filename'])
-    print('Device index is ', config['device'])
+    logging.info('Input file is "', config['filename'])
+    logging.info('Device index is ', config['device'])
 
     run(config, data_array)
+    sys.exit(0)
+
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     main(sys.argv[1:])
