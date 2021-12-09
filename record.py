@@ -11,14 +11,14 @@ import sys, getopt
 # dev_index: 
 # 
 # }
-help_str = "record.py - .wav file recorder\nUsage:\n\t-h\t\thelp\n\t-o\t<file>\toutput file name\n\t[-t]\t<sec>\tduration of recording (seconds) [default: 1]\n\t[-c]\t<num>\tNumber of channels [default: 1]"
+help_str = "record.py - .wav file recorder\nUsage:\n\t-h\t\thelp\n\t-o\t<file>\toutput file name\n\t[-t]\t<sec>\tduration of recording (seconds) [default: 1]\n\t[-c]\t<num>\tNumber of channels [default: 1]\n\t[-d]\t<index>\tDevice Index [default: 0]"
 options_dict = {
     'format': pyaudio.paInt32,
     'chans': 1,
     'sample_rate': 48000,
     'chunk_size': 4096,
     'record_secs': 1,
-    'dev_index': 1,
+    'dev_index': 0,
     'filename': ""
 }
 
@@ -52,7 +52,7 @@ def record(opt, audio):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, "ho:t:c:")
+        opts, args = getopt.getopt(argv, "ho:t:c:d:")
     except getopt.GetoptError:
         print(help_str)
         exit(1)
@@ -67,6 +67,8 @@ def main(argv):
             options_dict['record_secs'] = int(arg)
         elif opt == '-c':
             options_dict['chans'] = arg
+        elif opt == '-d':
+            options_dict['dev_index'] = int(arg)
 
     if options_dict['filename'] == "":
         print("Must specify filename.")
