@@ -11,6 +11,10 @@ pi@raspberrypi:~ $ sudo pip3 install pyaudio
 
 Running pyaudiotests.py will give a list of available audio devices. Their position in the list is the index. That needs to be passed to the input[output]_device_index parameter in both the pyaudio stream calls
 
+## Equations
+
+$fft$
+
 ## Useful Commands
 
 Lists audio devices for playback:
