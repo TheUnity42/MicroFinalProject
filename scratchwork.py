@@ -15,9 +15,16 @@ EPSILON = 1e-12
 def main():
 
     print("Reading file...")
-    wavefile = wave.open('test1.wav', 'rb')
+    # wave.open('Roland-D-20-8-Beat-1-112-bpm.wav', 'rb')
+    wavefile = wave.open('wavefile.wav', 'rb')
     wavh = wavHeader(wavefile)
-    buffer = np.frombuffer(wavefile.readframes(wavh['Num Frames']), dtype=np.int32)
+
+    print(wavh)
+
+    buffer = np.frombuffer(wavefile.readframes(wavh['Num Frames']), dtype=np.int16)
+
+    # buffer = buffer / buffer.max() * 1000
+
     print('\t', buffer, len(buffer))
 
     
@@ -49,6 +56,8 @@ def main():
     ax[1,0].set_title('Spectrogram')
     
     plt.savefig('plot.png')
+
+    print(buffer.max(), buffer.min(), buffer.std())
     
 
 if __name__ == '__main__':

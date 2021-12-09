@@ -16,3 +16,34 @@ Lists audio device names for recording <code>~ $ arecord -L</code></p>
 </br>
 <p>Plays audio file: <code>~ $ aplay -D [NAME] [FILE]</code></br>
 ex: <code>~ $ aplay -D plughw:CARD=Headset,DEV=0 test1.wav</code></p>
+
+<h2>Numpy Stuff</h2>
+Array Slicing:</br>
+array[start:stop:step] is used to access multiple elements at once</br>
+negative indexes start from the end of the array</br>
+examples:
+</br>
+<code>
+>>> a = np.array([1,2,3,4,5,6,7,8,9,10])</br>
+>>> a[0] # takes the first element</br>
+1</br>
+>>> a[1:5] # takes the elements from index 1 to 4</br>
+array([2, 3, 4, 5])</br>
+>>> a[1:5:2] # takes the elements from index 1 to 4 with a step of 2</br>
+array([2, 4])</br>
+>>> a[::-1] # reverses the array (takes the elements from the start to the end with a step of -1, so it goes backwards)</br>
+array([10, 9, 8, 7, 6, 5, 4, 3, 2, 1])</br>
+>>> a[::-2] # takes the elements from the start to the end with a step of -2, so it goes backwards and skips every other element</br>
+array([10, 8, 6, 4, 2])</br>
+>>> a[-1] # takes the last element</br>
+10</br>
+</code>
+<br>
+Slicing is MUTABLE:
+<br>
+<code>
+>>> b = a[1:5] # sets b to be the elements from index 1 to 4</br>
+>>> b[0] = 100 # changes the first element of b to be 100</br>
+>>> a # a is also changed, as b is a reference to a</br>
+array([1, 100, 3, 4, 5, 6, 7, 8, 9, 10])</br>
+</code>
