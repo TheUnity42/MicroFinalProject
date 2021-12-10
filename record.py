@@ -1,5 +1,6 @@
 import pyaudio
 import wave
+import numpy as np
 import sys, getopt
 
 # dict config: {
@@ -15,8 +16,8 @@ help_str = "record.py - .wav file recorder\nUsage:\n\t-h\t\thelp\n\t-o\t<file>\t
 options_dict = {
     'format': pyaudio.paInt32,
     'chans': 1,
-    'sample_rate': 48000,
-    'chunk_size': 4096,
+    'sample_rate': 16000,
+    'chunk_size': 1024,
     'record_secs': 1,
     'dev_index': 0,
     'filename': ""
@@ -32,7 +33,10 @@ def record(opt, audio):
     frames = []
 
     for i in range(0, (opt['sample_rate']//opt['chunk_size'])*opt['record_secs']):
-        data = stream.read(opt['chunk_size'])        
+        data = stream.read(opt['chunk_size'])
+        # np_arr = np.frombuffer(data, dtype=np.int16)
+        # np_arr = np.repeat(np_arr, 2)
+        # frames.append(np_arr.astype(np.int16).tobytes())
         frames.append(data)
         
     print("Finished Recording.")
@@ -44,7 +48,7 @@ def record(opt, audio):
 
     # save wav file
     wavefile = wave.open(opt['filename'], 'wb')
-    wavefile.setnchannels(opt['chans'])
+    wavefile.setnchannels(1)
     wavefile.setsampwidth(audio.get_sample_size(opt['format']))
     wavefile.setframerate(opt['sample_rate'])
     wavefile.writeframes(b''.join(frames))
