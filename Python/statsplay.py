@@ -1,14 +1,19 @@
-import numpy as np
-import pyaudio
-import wave
-import sys
+"""
+    statsplay.py - Interactive plotting and effects program
+    Jared Talon Holton
+    Rauly Baggett
+"""
+
 import getopt
-import matplotlib.pyplot as plt
-from matplotlib import widgets
+import logging
+import sys
 import threading
 import time
-import logging
-import scipy.io
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pyaudio
+from matplotlib import widgets
 
 global raise_exception
 
@@ -145,7 +150,6 @@ def play_audio(config: AtomicDict, raise_exception):
         -------
         nothing
         """
-    # wf = wave.open(config['filename'], 'rb')
 
     framerate = options['framerate']
 
@@ -166,7 +170,6 @@ def play_audio(config: AtomicDict, raise_exception):
         input=True,
         output_device_index=config['input']
     )
-
 
     data = in_stream.read(config['chunk'])
 
@@ -205,7 +208,7 @@ def play_audio(config: AtomicDict, raise_exception):
     #     ptr = (ptr + 1) % m
     #     return y, ptr
 
-    #for i in range(config['num_chunks']):
+    # for i in range(config['num_chunks']):
     while 1:
         # read effect values
         # helps prevent thread collisions if read only once
@@ -217,9 +220,6 @@ def play_audio(config: AtomicDict, raise_exception):
 
         # read data from buffer into a mutable numpy array
         inputs = np.frombuffer(data, dtype=np.int16)
-
-        # filter input
-        # inputs = np.convolve(inputs, options['filter_coef'], 'same')
 
         max_value = np.max(np.abs(inputs))
         if max_value > last_max:
@@ -237,36 +237,22 @@ def play_audio(config: AtomicDict, raise_exception):
         # distort the output
         if clip_distort_v > 0:
             buffer = clip_distort(buffer, clip_distort_v)
-            # buffer = 0.1 * distort + 0.9 * buffer
 
         if M > 0:
             for i in range(len(buffer)):
                 v, ptr = delayline(buffer[i], ptr)
-                buffer[i] += config['effects']['delay_amplitude'] * v + (1 - config['effects']['delay_amplitude']) * buffer[i]
+                buffer[i] += config['effects']['delay_amplitude'] * v + \
+                    (1 - config['effects']['delay_amplitude']) * buffer[i]
 
         if Mr > 0:
             for i in range(len(buffer)):
                 v, ptrr = reverbline(buffer[i], ptrr)
-                buffer[i] += config['effects']['reverb_amplitude'] * v + (1 - config['effects']['reverb_amplitude']) * buffer[i]
-
-
-        # flange = np.array(map(lambda x: flangeline(x, Fptr, Mf), buffer))
-
-        # np.vectorize(flangeline)
-
-        # buffer = buffer * 0.5 + flange * 0.5
-
-        # for i in range(len(buffer)):
-        #     v, ptr = flangeline(buffer[i], Fptr, Fmod)
-        #     buffer[i] = 0.5 * v + 0.5 * buffer[i]
-
-        #     Fmod = int((np.sin(fCount / framerate)+1) /
-        #                2 * (Mf - Mfmin) + Mfmin)
-        #     fCount += 1
+                buffer[i] += config['effects']['reverb_amplitude'] * v + \
+                    (1 - config['effects']['reverb_amplitude']) * buffer[i]
 
         buffer = np.repeat(buffer, 2).copy()
 
-         # isolates the left channel. [::2] will take every other element, starting at 0
+        # isolates the left channel. [::2] will take every other element, starting at 0
         left = buffer[::2]
         # isolates the right channel. [1::2] will take every other element, starting at 1
         right = buffer[1::2]
@@ -315,24 +301,11 @@ def subsample(array, factor, method='mean'):
         raise ValueError('Method not supported')
 
 
-def norm(x, mean=0, std=1):
-    return np.exp(-(x - mean)**2 / (2 * std**2)) / (std * np.sqrt(2 * np.pi))
-
-
-def nearestEvenDenominator(number, denominator):
-    """
-    Returns the nearest even denominator of the given number that produces no remainder
-    """
-    while number % denominator != 0:
-        denominator -= 1
-    return denominator
-
-
 def run(config, data_array, input_array):
     global raise_exception
     raise_exception = False
 
-    def handle_close_event(event): 
+    def handle_close_event(event):
         global raise_exception
         raise_exception = True
 
@@ -372,15 +345,8 @@ def run(config, data_array, input_array):
         np.arange(sliding_window_size//2), np.zeros(sliding_window_size//2), c='r', label='Right')[0]
     ax[1].legend()
 
-    # plot_points_fft_left = ax[1].plot(np.arange(
-    #     sliding_window_size//2), np.zeros(sliding_window_size//2), c='b', label='left')[0]
-    # plot_points_fft_right = ax[1].plot(np.arange(
-    #     sliding_window_size//2), np.zeros(sliding_window_size//2), c='r', label='right')[0]
-    # plot_points_window = ax[1].plot(np.arange(
-    #     sliding_window_size//2), np.zeros(sliding_window_size//2), c='k', label='window')[0]
     plot_points_input = ax[0].plot(np.arange(
         sliding_window_size//2), np.zeros(sliding_window_size//2), c='g', label='Input')[0]
-    # ax[1].legend()
 
     vol_ax = plt.axes([0.11, 0.05, 0.30, 0.03])
     fader_ax = plt.axes([0.11, 0.10, 0.30, 0.03])
@@ -394,12 +360,17 @@ def run(config, data_array, input_array):
         vol_ax, 'Volume', valinit=config['volume'], valmin=options['min_volume'], valmax=options['max_volume'], valstep=1000)
     fader_slider = widgets.Slider(
         fader_ax, 'Fade Side', valinit=config['effects']['fade'], valmin=0, valmax=1, valstep=0.1)
-    clip_distort_slider = widgets.Slider(clip_distort_ax, 'Clip Distort', valinit=config['effects']['clip_distort'], valmin=0, valmax=10)
-    delay_slider = widgets.Slider(delay_ax, 'Delay', valinit=config['effects']['delay_secs'], valmin=0, valmax=5, valstep=0.1)
-    delay_amp_slider = widgets.Slider(delay_amplitude_ax, 'Delay Amp', valinit=config['effects']['delay_amplitude'], valmin=0, valmax=1, valstep=0.1)
+    clip_distort_slider = widgets.Slider(
+        clip_distort_ax, 'Clip Distort', valinit=config['effects']['clip_distort'], valmin=0, valmax=10)
+    delay_slider = widgets.Slider(
+        delay_ax, 'Delay', valinit=config['effects']['delay_secs'], valmin=0, valmax=5, valstep=0.1)
+    delay_amp_slider = widgets.Slider(
+        delay_amplitude_ax, 'Delay Amp', valinit=config['effects']['delay_amplitude'], valmin=0, valmax=1, valstep=0.1)
 
-    reverb_slider = widgets.Slider(reverb_ax, 'Reverb', valinit=config['effects']['reverb_secs'], valmin=0, valmax=2, valstep=0.05)
-    reverb_amp_slider = widgets.Slider(reverb_amplitude_ax, 'Reverb Falloff', valinit=config['effects']['reverb_falloff'], valmin=0, valmax=1)
+    reverb_slider = widgets.Slider(
+        reverb_ax, 'Reverb', valinit=config['effects']['reverb_secs'], valmin=0, valmax=2, valstep=0.05)
+    reverb_amp_slider = widgets.Slider(
+        reverb_amplitude_ax, 'Reverb Falloff', valinit=config['effects']['reverb_falloff'], valmin=0, valmax=1)
 
     def update(effect, is_effect=True):
         def update_func(val):
@@ -442,7 +413,7 @@ def run(config, data_array, input_array):
                 window_data[::2], window_subsample_rate)
 
             window_data_right = subsample(
-                window_data[1::2], window_subsample_rate)            
+                window_data[1::2], window_subsample_rate)
 
             # amplitude plots
             plot_points_left.set_data(
@@ -456,43 +427,22 @@ def run(config, data_array, input_array):
             window_in_data = in_data[-sliding_window_size:]
             window_in_data = subsample(window_in_data, window_subsample_rate)
 
-            plot_points_input.set_data(np.arange(window_in_data.shape[0]), window_in_data)
-
-            # fft plots
-            # fft_window_range = np.linspace(
-            #     0, window_data.shape[0]//2, window_data.shape[0]//2)
-            # fft_window = norm(fft_window_range, fft_window_range.mean(), 512/8)
-
-            # fft_data_left = np.fft.rfft(window_data[::2] * fft_window)
-            # fft_data_left = np.abs(fft_data_left)
-
-            # fft_data_right = np.fft.rfft(window_data[1::2] * fft_window)
-            # fft_data_right = np.abs(fft_data_right)
-
-            # plot_points_fft_left.set_data(np.linspace(
-            #     0, config['frame_rate']//2, fft_data_left.shape[0]), fft_data_left)
-
-            # plot_points_fft_right.set_data(np.linspace(
-            #     0, config['frame_rate']//2, fft_data_right.shape[0]), fft_data_right)
+            plot_points_input.set_data(
+                np.arange(window_in_data.shape[0]), window_in_data)
 
             # shorten data arrays
             if in_data.shape[0] > sliding_window_size * 2:
                 data_array.remove(np.s_[:sliding_window_size])
                 input_array.remove(np.s_[:sliding_window_size])
 
-
-
             # rebuild plot
             fig.canvas.restore_region(background)
             ax[1].draw_artist(plot_points_left)
             ax[1].draw_artist(plot_points_right)
-            # ax[1].draw_artist(plot_points_fft_left)
-            # ax[1].draw_artist(plot_points_fft_right)
             ax[0].draw_artist(plot_points_input)
             fig.canvas.blit(ax[0].bbox)
 
             # plt.pause(1/plot_sample_rate)
-            # time.sleep(1/plot_sample_rate)
     except KeyboardInterrupt:
         raise_exception = True
         logging.info("Interupted by user")
@@ -506,7 +456,6 @@ def run(config, data_array, input_array):
 
 
 def main(argv):
-
     data_array = AtomicArray(0)
     input_array = AtomicArray(0)
 
@@ -538,12 +487,12 @@ def main(argv):
         opts, args = getopt.getopt(
             argv, "hi:d:v:f:", ["file=", "device=", "volume=", "input="])
     except getopt.GetoptError:
-        print('wavPlayer.py -f <inputfile> -d <device_index> -i <input_index> -v <volume>')
+        print('statsplay.py -f <inputfile> -d <device_index> -i <input_index> -v <volume>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print(
-                'wavPlayer.py -f <inputfile> -d <device_index> -i <input_index> -v <volume>')
+                'statsplay.py -f <inputfile> -d <device_index> -i <input_index> -v <volume>')
             sys.exit()
         elif opt in ("-f", "--file"):
             config['filename'] = arg
@@ -554,16 +503,12 @@ def main(argv):
         elif opt in ("-v", "--volume"):
             config['volume'] = int(arg)
 
-    # if config['filename'] == '':
-    #     print('wavPlayer.py -i <inputfile> -d <device_index> -v <volume>')
-    #     sys.exit(2)
+    if config['input'] == 0:
+        print('statsplay.py -f <inputfile> -d <device_index> -i <input_index> -v <volume>')
+        print("\nNo input selected -- Using default")
 
-    # fir = scipy.io.loadmat(options['filter'])['Num'] 
-    # options['filter_coef'] = fir[0]
-
-
-    logging.info('Input file is "', config['filename'])
-    logging.info('Device index is ', config['device'])
+    print('Input index is ', config['input'])
+    print('Device index is ', config['device'])
 
     run(config, data_array, input_array)
     sys.exit(0)
