@@ -558,8 +558,8 @@ def main(argv):
     #     print('wavPlayer.py -i <inputfile> -d <device_index> -v <volume>')
     #     sys.exit(2)
 
-    fir = scipy.io.loadmat(options['filter'])['Num'] 
-    options['filter_coef'] = fir[0]
+    # fir = scipy.io.loadmat(options['filter'])['Num'] 
+    # options['filter_coef'] = fir[0]
 
 
     logging.info('Input file is "', config['filename'])
