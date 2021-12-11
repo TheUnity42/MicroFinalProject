@@ -1,5 +1,8 @@
 /**
  * effects.c 
+ * 
+ * Applies various effect to an audio stream.
+ * Effects include Fade, Delay, Reverb, and Clip Distort
  *
  * Jared Talon Holton
  * Rauly Baggett
@@ -10,25 +13,25 @@
 #include <stdlib.h>
 #include <math.h>
 
+/** --- Sampling Config --- **/
 #define SAMPLE_RATE 44100
 #define FRAMES_PER_BUFFER 1024
 #define NUM_CHANNELS 2
-
-#define VOLUME 1.1
 
 #define PA_SAMPLE_TYPE paFloat32
 typedef float SAMPLE;
 #define SAMPLE_SILENCE 0.0f
 #define PRINTF_S_FORMAT "%.8f"
 
+/** --- Input pin config --- **/
 #define FADE_PIN 0
 #define DELAY_PIN 1
 #define REVERB_PIN 2
 #define DISTORT_PIN 3
-
 #define INC_PIN 4
 #define DEC_PIN 5
 
+/** --- Reverb/Delay buffer --- **/
 typedef struct {
 	SAMPLE* buffer;
 	unsigned int ptr;
@@ -37,6 +40,7 @@ typedef struct {
 	float holdRate;
 } ReverbInfo;
 
+/** --- Pin States --- **/
 typedef struct {
 	short fade;
 	short delay;
@@ -46,6 +50,7 @@ typedef struct {
 	short dec;
 } PinInfo;
 
+/** --- Global Variables --- **/
 typedef struct {
 	SAMPLE max;
 	ReverbInfo reverb;
@@ -55,11 +60,32 @@ typedef struct {
 	float clip;
 } paTestData;
 
+/**
+ * @brief Applies reverberation/delay to the audio sample  provided
+ * 
+ * @param sample sample to be manipulated
+ * @param info ReverbInfo struct containing the delay and reverb parameters
+ */
 static void reverbline(SAMPLE* sample, ReverbInfo* info);
 
+/**
+ * @brief Polls the input pins and sets the corresponding PinInfo information
+ * 
+ * @param pins PinInfo struct containing the current state of the input pins
+ */
 static void pollPins(PinInfo* pins);
 
-
+/**
+ * @brief Callback for PortAudio. Processes the input stream and applies effects
+ * 
+ * @param inputBuffer input buffer for recording device
+ * @param outputBuffer output buffer for playback device
+ * @param framesPerBuffer samples in each buffer
+ * @param timeInfo time info from PortAudio
+ * @param statusFlags status info from PortAudio
+ * @param userData global data for the callback
+ * @return int Status code from PortAudio
+ */
 static int effectCallback(const void *inputBuffer, void *outputBuffer,
 						  unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo *timeInfo,
 						  PaStreamCallbackFlags statusFlags, void *userData) {
@@ -102,8 +128,6 @@ static int effectCallback(const void *inputBuffer, void *outputBuffer,
 			if(data->pins.distort)
 				scratch *= data->clip;
 
-			scratch *= VOLUME;
-
 			if(data->pins.fade) {
 				*wptr++ = data->fade * scratch; /* left */
 				if (NUM_CHANNELS == 2)
@@ -125,8 +149,6 @@ static int effectCallback(const void *inputBuffer, void *outputBuffer,
 	return finished;
 }
 
-/*******************************************************************/
-int main(void);
 int main(void) {
 	PaStreamParameters inputParameters, outputParameters;
 	PaStream *stream;
@@ -139,11 +161,12 @@ int main(void) {
 	int maxReverb;
 	int maxDelay;
 
-	if(wiringPiSetup() == -1){ /*when initialize wiring failed,print messageto screen*/
+	if(wiringPiSetup() == -1){ /*when initialize wiring failed, print message to screen*/
     	printf("setup wiringPi failed!");
     	return 1;
   	}
 
+	/* --- Initialize Pin States --- */
 	pinMode(FADE_PIN, INPUT);
 	pinMode(DELAY_PIN, INPUT);
 	pinMode(REVERB_PIN, INPUT);
@@ -180,6 +203,7 @@ int main(void) {
 		data.delay.buffer[i] = SAMPLE_SILENCE;
 	}
 
+	/* --- init PortAudio --- */
 	err = Pa_Initialize();
 	if (err != paNoError)
 		goto done;
@@ -297,6 +321,7 @@ int main(void) {
 done:
 	Pa_Terminate();
 
+	/* --- Cleanup --- */
 	if(data.reverb.buffer)
 		free(data.reverb.buffer);
 	if(data.delay.buffer)
