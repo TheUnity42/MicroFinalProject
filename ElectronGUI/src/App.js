@@ -2,6 +2,7 @@ import { useState } from "react";
 import SlideButton from "./components/SlideButton";
 
 function App() {
+
   let config = useState({
     fade: -1,
     delay: -1,
@@ -25,7 +26,7 @@ function App() {
       reverb: value,
     });
   }
-  
+
   return (
     <div className="flex flex-row w-screen h-screen bg-gray-800 divide-gray-900 divide-x">
       <div className="relative flex flex-col mx-1">
@@ -34,7 +35,7 @@ function App() {
         <SlideButton text="Reverb" callback={reverbcallback} />
       </div>
       <div className="relative flex flex-col m-1">
-        <p>Fade: {config.fade}</p>
+        <p className="text-white">Fade: {paModule.hello()}</p>
       </div>
     </div>
   );
