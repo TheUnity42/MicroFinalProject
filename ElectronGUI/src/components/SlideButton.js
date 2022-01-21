@@ -1,7 +1,7 @@
 import React from "react";
 
 function SlideButtonRange(props) {
-  const { min, max, value, handleChange } = props;
+  const { min, max, step, value, handleChange } = props;
 
   return (
     <div className="relative flex flex-row w-36 h-6 mx-2 items-center">
@@ -9,6 +9,7 @@ function SlideButtonRange(props) {
         type="range"
         min={min}
         max={max}
+        step={step}
         defaultValue={value}
         onChange={handleChange}
         className="relative m-1 w-28 bg-blue-600"
@@ -31,7 +32,7 @@ class SlideButton extends React.Component {
     this.setState({
       active: !this.state.active,
     });
-    this.props.callback(this.state.active ? this.state.value : -1);
+    this.props.callback(this.state.value, this.state.active);
   };
 
   handleChange = (e) => {
@@ -46,8 +47,9 @@ class SlideButton extends React.Component {
     if (this.state.active) {
       slider = (
         <SlideButtonRange
-          min={0}
-          max={10}
+          min={this.props.config.min}
+          max={this.props.config.max}
+          step={this.props.config.step}
           value={this.state.value}
           handleChange={this.handleChange}
         />
