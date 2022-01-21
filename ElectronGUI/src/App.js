@@ -2,6 +2,8 @@ import React from "react";
 import SlideButton from "./components/SlideButton";
 import LiveChart from "./components/LiveChart";
 
+const backgroundColor = React.createContext("bg-gray-800");
+
 const effectConfigs = {
   fade: {
     min: -1,
@@ -24,7 +26,7 @@ const effectConfigs = {
 };
 
 const ChartConfig = {
-  fps: 1000 / 60,
+  fps: 1000 / 30,
   maxFrames: 60,
 };
 
@@ -41,47 +43,17 @@ class App extends React.Component {
       delay: effectConfigs.delay.default,
       reverb: effectConfigs.reverb.default,
       chartData: [],
-      arr: [],
+      chartPoint: 0,
+      arr: Array.from({ length: 5 * ChartConfig.maxFrames }, () =>
+        Math.random() - 0.5
+      ),
     };
 
-    this.brownianCallback = this.brownianCallback.bind(this);
+    this.chartCallback = this.chartCallback.bind(this);
   }
 
-  componentDidMount() {
-    this.chart = setInterval(() => this.chartTick(), ChartConfig.fps);
-    this.test = setInterval(() => {
-      seed++;
-
-      paModule.runBrownianMotion(0, 5, 1, seed, this.brownianCallback);
-    }, 2000);
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.chart);
-    clearInterval(this.test);
-  }
-
-  componentDidUpdate() {
-    console.log(this.state);
-  }
-
-  chartTick() {
-    if (this.state.chartData.length > ChartConfig.maxFrames) {
-      this.state.chartData.shift();
-    }
-  }
-
-  brownianCallback(err, result) {
-    if (result) {
-      const out = Array.from(result);
-      this.setState((state, props) => {
-        return {
-          chartData: state.chartData.concat(out),
-        };
-      });
-    } else if (err) {
-      console.log(err);
-    }
+  chartCallback() {
+    return this.state.arr.shift();
   }
 
   handleFade = (value, active) => {
@@ -89,8 +61,6 @@ class App extends React.Component {
       fade: value,
       useFade: active,
     });
-
-    // paModule.runBrownianMotion(0, 15, 0.5, seed++, this.brownianCallback);
   };
 
   handleDelay = (value, active) => {
@@ -127,7 +97,7 @@ class App extends React.Component {
             config={effectConfigs.reverb}
           />
         </div>
-        <LiveChart chartData={this.state.chartData} />
+        <LiveChart callback={this.chartCallback} />
       </div>
     );
   }

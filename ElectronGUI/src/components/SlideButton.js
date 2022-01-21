@@ -62,10 +62,10 @@ class SlideButton extends React.Component {
           onClick={this.onClick}
           className={
             "relative text-black w-36 h-12 m-2 justify-center text-center align-middle rounded-xl shadow-xl " +
-            "hover:border-2 hover:rounded-none transition-all ease-linear " +
+            "transition-all ease-linear ring-2 hover:ring-offset-2 ring-offset-gray-800 " +
             (this.state.active
-              ? "bg-green-400 hover:border-blue-600"
-              : "bg-blue-600 hover:border-green-400")
+              ? "bg-green-400 hover:ring-blue-600"
+              : "bg-blue-600 hover:ring-green-400")
           }
         >
           {this.props.text}
