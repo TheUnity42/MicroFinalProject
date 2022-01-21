@@ -28,10 +28,7 @@ const ChartConfig = {
   maxFrames: 60,
 };
 
-let chartData = {
-  labels: [],
-  data: [],
-};
+let seed = 0;
 
 class App extends React.Component {
   constructor(props) {
@@ -43,21 +40,47 @@ class App extends React.Component {
       fade: effectConfigs.fade.default,
       delay: effectConfigs.delay.default,
       reverb: effectConfigs.reverb.default,
+      chartData: [],
+      arr: [],
     };
+
+    this.brownianCallback = this.brownianCallback.bind(this);
   }
 
   componentDidMount() {
     this.chart = setInterval(() => this.chartTick(), ChartConfig.fps);
+    this.test = setInterval(() => {
+      seed++;
+
+      paModule.runBrownianMotion(0, 5, 1, seed, this.brownianCallback);
+    }, 2000);
   }
 
   componentWillUnmount() {
     clearInterval(this.chart);
+    clearInterval(this.test);
+  }
+
+  componentDidUpdate() {
+    console.log(this.state);
   }
 
   chartTick() {
-    if (chartData.data.length > ChartConfig.maxFrames) {
-      chartData.data.shift();
-      chartData.labels.shift();
+    if (this.state.chartData.length > ChartConfig.maxFrames) {
+      this.state.chartData.shift();
+    }
+  }
+
+  brownianCallback(err, result) {
+    if (result) {
+      const out = Array.from(result);
+      this.setState((state, props) => {
+        return {
+          chartData: state.chartData.concat(out),
+        };
+      });
+    } else if (err) {
+      console.log(err);
     }
   }
 
@@ -66,8 +89,8 @@ class App extends React.Component {
       fade: value,
       useFade: active,
     });
-    chartData.data.push(value);
-    chartData.labels.push("");
+
+    // paModule.runBrownianMotion(0, 15, 0.5, seed++, this.brownianCallback);
   };
 
   handleDelay = (value, active) => {
@@ -104,49 +127,10 @@ class App extends React.Component {
             config={effectConfigs.reverb}
           />
         </div>
-        <LiveChart chartData={chartData} />
+        <LiveChart chartData={this.state.chartData} />
       </div>
     );
   }
 }
-
-// function App() {
-//   let config = useState({
-//     fade: -1,
-//     delay: -1,
-//     reverb: -1,
-//   });
-
-//   function fadeCallback(value) {
-//     config.setState({
-//       fade: value,
-//     });
-//     chartData.data.push(value);
-//     console.log(value);
-//   }
-
-//   function delayCallback(value) {
-//     config.setState({
-//       delay: value,
-//     });
-//   }
-
-//   function reverbcallback(value) {
-//     config.setState({
-//       reverb: value,
-//     });
-//   }
-
-//   return (
-//     <div className="flex flex-row w-screen h-screen bg-gray-800 divide-gray-900 divide-x">
-//       <div className="relative flex flex-col mx-1">
-//         <SlideButton text="Fade" callback={fadeCallback} />
-//         <SlideButton text="Delay" callback={delayCallback} />
-//         <SlideButton text="Reverb" callback={reverbcallback} />
-//       </div>
-//         <LiveChart chartData={chartData} />
-//     </div>
-//   );
-// }
 
 export default App;

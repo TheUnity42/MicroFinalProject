@@ -38,11 +38,11 @@ const options = {
 };
 
 const buildData = ({ chartData }) => ({
-  labels: chartData.labels,
+  labels: [ ...Array(chartData.length).fill("") ],
   datasets: [
     {
-      label: "",
-      data: chartData.data,
+      label: chartData.keys(),
+      data: chartData,
       backgroundColor: "rgba(255, 255, 255, 0.1)",
       borderColor: "rgba(255, 255, 255, 1)",
       pointBackgroundColor: "rgba(255, 255, 255, 1)",
@@ -55,6 +55,7 @@ const buildData = ({ chartData }) => ({
 
 function LiveChart(props) {
   const data = buildData(props);
+  console.log(data);
   return (
     <div className="relative flex-grow w-max h-1/2 bg-gray-800 text-white items-center">
       <Line data={data} options={options} />
