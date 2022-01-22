@@ -2,14 +2,22 @@ const PaModule = require("../lib/binding.js");
 const assert = require("assert");
 
 assert(PaModule.createTSFN);
+assert(PaModule.simplePlayback);
 
-const callback = (...args) => {
-  console.log(...args);
+let count = 0;
+
+const callback = (frames, time, input, output) => {
+  // console.log(frames, time, new Float32Array(input), new Float32Array(output));
+  return 0;
 };
 
-console.log("Creating a new module");
+// console.log("Creating a new module");
+// void async function () {
+//   console.log(await PaModule.createTSFN(callback));
+// }();
+
 void async function () {
-  console.log(await PaModule.createTSFN(callback));
+  console.log(await PaModule.simplePlayback(callback, 1));
 }();
 
 // assert(PaModule.hello, "The expected function 'hello' is undefined");

@@ -2,6 +2,7 @@ const path = require("path");
 
 const { app, BrowserWindow } = require("electron");
 const isDev = require("electron-is-dev");
+const electronReload = require("electron-reload");
 
 function createWindow() {
   // Create the browser window.
@@ -10,7 +11,7 @@ function createWindow() {
     height: 600,
     webPreferences: {
       nodeIntegration: false,
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "../src/preload.js"),
     },
   });
 

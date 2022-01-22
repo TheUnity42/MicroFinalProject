@@ -12,15 +12,22 @@ const options = {
     },
   },
   scales: {
-    yAxes: {
-      ticks: {
-        color: "rgba(255, 255, 255, 1)",
-      },
-      grid: {
-        display: false,
-        drawBorder: false,
-      },
+    y: {
+      min: -1,
+      max: 1,
+      color: "rgba(255, 255, 255, 1)",
     },
+
+    // yAxes: {
+    //   ticks: {
+    //     color: "rgba(255, 255, 255, 1)",
+    //     beginAtZero: false,
+    //   },
+    //   grid: {
+    //     display: false,
+    //     drawBorder: false,
+    //   },
+    // },
 
     xAxes: {
       ticks: {
@@ -33,11 +40,6 @@ const options = {
     },
   },
   layout: {},
-};
-
-const ChartConfig = {
-  fps: 1000 / 30,
-  maxFrames: 60,
 };
 
 const buildData = () => ({
@@ -71,67 +73,50 @@ class LiveChart extends React.Component {
       runTime: 0,
     };
     this.lineRef = React.createRef();
+    this.updateFunc = this.updateFunc.bind(this);
   }
 
   componentDidMount() {
-    this.updateCallback = setInterval(() => {
-      const newVal = this.props.callback(); // fetch new value
-      const timestamp = timeFormat(this.state.runTime); // get timestamp
-      // update time
-      this.setState((state, props) => {
-        return {
-          runTime: state.runTime + ChartConfig.fps,
-        };
-      });
-
-      // update data
-      if (newVal) {
-        this.lineRef.data.datasets[0].data.push(newVal);
-        this.lineRef.data.labels.push(timestamp);
-        this.lineRef.update('none');
-      }
-
-      if (this.lineRef.data.datasets[0].data.length > ChartConfig.maxFrames) {
-        this.lineRef.data.datasets[0].data.shift();
-        this.lineRef.data.labels.shift();
-        this.lineRef.update('none');
-      }
-    }, ChartConfig.fps);
+    this.updateCallback = setInterval(
+      this.updateFunc,
+      this.props.ChartConfig.fps
+    );
   }
 
   componentWillUnmount() {
     clearInterval(this.updateCallback);
   }
 
+  updateFunc = () => {
+    const newVals = this.props.callback(); // fetch new value
+    const timestamp = timeFormat(this.state.runTime); // get timestamp
+
+    // update data
+    if (newVals) {
+
+      this.lineRef.data.datasets[0].data.push(...newVals);
+      this.lineRef.data.labels.push(...newVals.keys());
+      this.lineRef.update("none"); 
+    }
+    const diff = this.lineRef.data.datasets[0].data.length - this.props.ChartConfig.maxFrames;
+    if (diff > 0) {
+      this.lineRef.data.datasets[0].data.splice(0, diff);
+      this.lineRef.data.labels.splice(0, diff);
+      this.lineRef.update("none");
+    }
+  };
+
   render() {
     return (
       <div className="relative flex-grow w-full h-full bg-gray-700 items-center shadow-xl">
-      <Line data={this.state.data} options={options} ref={(reference) => this.lineRef = reference}/>
-    </div>
+        <Line
+          data={this.state.data}
+          options={options}
+          ref={(reference) => (this.lineRef = reference)}
+        />
+      </div>
     );
   }
 }
-
-
-// function LiveChart(props) {
-//   const [data, setData] = React.useState(buildData());
-//   // const data = buildData(props);
-//   setData((prev) => {
-//     return {
-//       ...prev,
-//       labels: prev.labels.concat(props.data.x),
-//       datasets: prev.datasets.map((d) => ({
-//         ...d,
-//         data: d.data.concat(props.data.y),
-//       })),
-//     };
-//   });
-//   console.log(data);
-//   return (
-//     <div className="relative flex-grow w-max h-1/2 bg-gray-800 text-white items-center">
-//       <Line data={data} options={options} />
-//     </div>
-//   );
-// }
 
 export default LiveChart;

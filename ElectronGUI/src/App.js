@@ -1,6 +1,7 @@
 import React from "react";
 import SlideButton from "./components/SlideButton";
 import LiveChart from "./components/LiveChart";
+import ControlBar from "./components/ControlBar";
 
 const effectConfigs = {
   fade: {
@@ -25,7 +26,10 @@ const effectConfigs = {
 
 const ChartConfig = {
   fps: 1000 / 30,
-  maxFrames: 60,
+  maxFrames: 44100 / 10,
+  sampleRate: 44100,
+  samplesPerFrame: 44100 / 30,
+  subSample: 4
 };
 
 class App extends React.Component {
@@ -38,15 +42,13 @@ class App extends React.Component {
       fade: effectConfigs.fade.default,
       delay: effectConfigs.delay.default,
       reverb: effectConfigs.reverb.default,
-      chartData: [],
-      chartPoint: 0,
-      arr: Array.from({ length: 5 * ChartConfig.maxFrames }, () =>
-        Math.random() - 0.5
-      ),
+      arr: [],
+      abort: false
     };
 
     this.chartCallback = this.chartCallback.bind(this);
-    this.moduleFunction = this.moduleFunction.bind(this);
+    this.handlePlay = this.handlePlay.bind(this);
+    this.handleAbort = this.handleAbort.bind(this);
 
     this.handleFade = this.handleFade.bind(this);
     this.handleDelay = this.handleDelay.bind(this);
@@ -54,7 +56,11 @@ class App extends React.Component {
   }
 
   chartCallback() {
-    return this.state.arr.shift();
+    if (this.state.arr.length > 0) {
+      return this.state.arr.splice(0, ChartConfig.samplesPerFrame);
+    } else {
+      return null;
+    }
   }
 
   handleFade = (value, active) => {
@@ -62,7 +68,6 @@ class App extends React.Component {
       fade: value,
       useFade: active,
     });
-    this.moduleFunction();
   };
 
   handleDelay = (value, active) => {
@@ -79,12 +84,32 @@ class App extends React.Component {
     });
   };
 
-  moduleFunction = async () => {
-    await paModule.createTSFN(this.moduleCallback);
+  moduleCallback = (frames, time, input, output) => {
+    const inputArr = new Float32Array(input);
+    const outputArr = new Float32Array(output);
+    this.setState((prevState) => {
+      return {
+        arr: prevState.arr.concat(Array.from(inputArr)),
+      }
+    }, () => {
+      console.log(this.state.arr.length);
+    });
+    return this.state.abort ? 1 : 0;
   };
 
-  moduleCallback = (...args) => {
-    console.log(...args);
+  handlePlay = (play) => {
+    if (play) {
+      return window.paModule.simplePlayback(this.moduleCallback, 0);
+    } else {
+      return Promise.resolve();
+    }
+  };
+
+  handleAbort = (trigger) => {
+    console.log("abort?: ", trigger);
+    this.setState({
+      abort: trigger
+    });
   };
 
   render() {
@@ -107,9 +132,10 @@ class App extends React.Component {
             config={effectConfigs.reverb}
           />
         </div>
-        <div className="relative flex-grow flex flex-col p-2">
-          <div className="relative flex-grow h-1/2 flex flex-row border-2 border-gray-900 shadow-xl">
-            <LiveChart callback={this.chartCallback} />
+        <div className="relative flex-grow flex-shrink flex flex-col p-1">
+          <ControlBar playCallback={this.handlePlay} abortCallback={this.handleAbort}/>
+          <div className="relative flex-grow flex-shrink flex flex-row border-2 border-gray-900 shadow-xl">
+            <LiveChart callback={this.chartCallback} ChartConfig={ChartConfig} />
           </div>
         </div>
       </div>

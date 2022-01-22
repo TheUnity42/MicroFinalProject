@@ -13,11 +13,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdexcept>
+#include <functional>
 
 #ifndef EFFECTSLIB_H
 #define EFFECTSLIB_H
 
 #define PA_SAMPLE_TYPE paFloat32
+#define PROCESS_INTERVAL_DELAY 100
+
 
 namespace EffectsLib {
 
@@ -31,11 +34,20 @@ typedef struct {
 	SAMPLE SAMPLE_SILENCE;
 } Config;
 
-extern const Config StdConfig = {44100, 1024, 1, 2, 0.0f};
-extern const Config MonoConfig = {44100, 1024, 1, 1, 0.0f};
+typedef struct {
+	SAMPLE *input_buffer;
+	SAMPLE *output_buffer;	
+	uint32_t input_buffer_size;
+	uint32_t output_buffer_size;
+	uint32_t framesProcessed;
+	PaStreamCallbackTimeInfo timeInfo;
+} Buffer;
 
 typedef struct {
 	Config config;
+    uint32_t framesProcessed;
+    const uint32_t maxFramesToProcess;
+    std::function<bool(Buffer*)> callback;
 } ContextData;
 
 typedef struct {
@@ -43,6 +55,9 @@ typedef struct {
 	PaStreamParameters outputParameters;
 	PaStream *stream;	
 } Container;
+
+extern const Config StdConfig;
+extern const Config MonoConfig;
 
 /**
  * @brief Callback for PortAudio. Processes the input stream and applies effects
@@ -59,11 +74,38 @@ static int effectCallback(const void *inputBuffer, void *outputBuffer,
 						  unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo *timeInfo,
 						  PaStreamCallbackFlags statusFlags, void *userData);
 
-static void init(Container *container, ContextData context);
+/**
+ * @brief Initializes and Opens the PortAudio stream
+ *
+ * @param container Container to initialize
+ * @param context Context data for the stream
+ */
+void init(Container *container, ContextData context);
+
+/**
+ * @brief Starts audio processing and waits for completion
+ * 
+ * @param container Container holding stream data
+ * @param context Context data for the stream
+ */
+void process(Container *container, ContextData context);
+
+/**
+ * @brief Closes the stream and terminates PortAudio
+ * 
+ * @param container Container holding stream data
+ * @param context Context data for the stream
+ */
+void consume(Container *container, ContextData context);
 
 class EffectsException : public std::runtime_error {
 public:
-    EffectsException(const char* message) : std::runtime_error(message) {}
+    EffectsException() : std::runtime_error("no except"), code(0) {}
+    EffectsException(const char* message) : std::runtime_error(message), code(255) {}
+	EffectsException(const char* message, uint8_t code) : std::runtime_error(message), code(code) {}
+	uint8_t which() const { return code; }
+private:
+uint8_t code;
 };
 
 } // namespace EffectsLib

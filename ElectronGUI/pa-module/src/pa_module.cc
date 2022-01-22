@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <portaudio.h>
 #include <thread>
+#include "include/effectsBinding.hh"
 
 constexpr size_t ARRAY_LENGTH = 10;
 
@@ -78,8 +79,11 @@ void FinalizerCallback(Napi::Env env, void *finalizeData, TsfnContext *context) 
   delete context;
 }
 
+
+
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports["createTSFN"] = Napi::Function::New(env, CreateTSFN);
+  exports["simplePlayback"] = Napi::Function::New(env, EffectsLibBinding::CreateSimple);
   return exports;
 }
 

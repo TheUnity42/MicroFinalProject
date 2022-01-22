@@ -1,6 +1,7 @@
 {
   "main": "lib/binding.js",
   "dependencies": {
+    "node": "^17.3.1",
     "node-addon-api": "^1.1.0",
     "node-gyp": "^8.4.1"
   },

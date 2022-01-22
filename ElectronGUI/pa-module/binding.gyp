@@ -2,7 +2,7 @@
   'targets': [
     {
       'target_name': 'pa-module-native',
-      'sources': [ 'src/pa_module.cc', 'src/effectslib.cc', 'src/include/effectslib.hh' ],
+      'sources': [ 'src/pa_module.cc', 'src/effectslib.cc', 'src/include/effectslib.hh', 'src/include/effectsBinding.hh', 'src/effectsBinding.cc' ],
       'include_dirs': ["<!@(node -p \"require('node-addon-api').include\")", "C:\\CLibs\\portaudio\\include", "C:\\CLibs\\portaudio\\build\\msvc\\x64\\Debug"],
       'dependencies': ["<!(node -p \"require('node-addon-api').gyp\")"],
       'libraries': ['-l"C:\\CLibs\\portaudio\\build\\msvc\\x64\\Debug\\portaudio_x64.lib"'],

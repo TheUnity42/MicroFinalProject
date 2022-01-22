@@ -15,6 +15,9 @@
 
 namespace EffectsLib {
 
+extern const Config StdConfig = {44100, 1024, 1, 2, 0.0f};
+extern const Config MonoConfig = {44100, 1024, 1, 1, 0.0f};
+
 static int effectCallback(const void *inputBuffer, void *outputBuffer,
 						  unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo *timeInfo,
 						  PaStreamCallbackFlags statusFlags, void *userData) {
@@ -23,13 +26,8 @@ static int effectCallback(const void *inputBuffer, void *outputBuffer,
 	Config config = data->config;
 	const SAMPLE *rptr = (const SAMPLE *)inputBuffer;
 	SAMPLE *wptr = (SAMPLE *)outputBuffer;
-	long i;
-	int framesToCalc = config.FRAMES_PER_BUFFER;
-
-	(void)outputBuffer;
-	(void)timeInfo;
-	(void)statusFlags;
-	(void)userData;
+	uint32_t i;
+	uint16_t framesToCalc = config.FRAMES_PER_BUFFER;
 
 	if (inputBuffer == NULL) {
 		for (i = 0; i < framesToCalc; i++) {
@@ -48,10 +46,31 @@ static int effectCallback(const void *inputBuffer, void *outputBuffer,
 		}
 	}
 
-	return paContinue;
+    Buffer *buffer = new Buffer();
+    buffer->input_buffer = (SAMPLE *)inputBuffer;
+    buffer->output_buffer = (SAMPLE *)outputBuffer;
+    buffer->input_buffer_size = framesPerBuffer * config.INPUT_CHANNELS * sizeof(SAMPLE);
+    buffer->output_buffer_size = framesPerBuffer * config.OUTPUT_CHANNELS * sizeof(SAMPLE);
+    buffer->framesProcessed = data->framesProcessed;
+    buffer->timeInfo = *timeInfo;
+
+	// process outside callback. If the callback returns false, we need to stop the stream
+	if(!data->callback(buffer)) {
+		return paComplete;
+	}
+
+	if(data->maxFramesToProcess == 0) {
+        return paContinue;
+    }
+    data->framesProcessed += framesToCalc;
+    if (data->framesProcessed >= data->maxFramesToProcess) {
+        return paComplete;
+    } else {
+        return paContinue;
+    }
 }
 
-static void init(Container *container, ContextData context) {
+void init(Container *container, ContextData context) {
 	PaError err = paNoError;
 	err = Pa_Initialize();
 	if (err != paNoError) {
@@ -84,6 +103,33 @@ static void init(Container *container, ContextData context) {
 
     if (err != paNoError) {
         throw EffectsException("Error opening PortAudio stream");
+    }
+}
+
+void process(Container *container, ContextData context) {
+    PaError err = Pa_StartStream(container->stream);
+    if (err != paNoError) {
+        throw EffectsException("Error starting PortAudio stream");
+    }
+
+    while (err = Pa_IsStreamActive(container->stream)) {
+		Pa_Sleep(PROCESS_INTERVAL_DELAY);
+	}
+
+    if (err < 0) {
+        throw EffectsException("Error Encountered in PortAudio stream");
+    }
+}
+
+void consume(Container *container, ContextData context) {
+	PaError err = Pa_CloseStream(container->stream);
+    if (err != paNoError) {
+        throw EffectsException("Error closing PortAudio stream");
+    }
+
+    err = Pa_Terminate();
+    if (err != paNoError) {
+        throw EffectsException("Error terminating PortAudio");
     }
 }
 
