@@ -1,5 +1,6 @@
 #include <chrono>
 #include <napi.h>
+#include <stdio.h>
 #include <portaudio.h>
 #include <thread>
 
@@ -62,7 +63,8 @@ void threadEntry(TsfnContext *context) {
       Napi::Error::Fatal("ThreadEntry", "Failed to call thread-safe function");
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	fprintf(stdout, "Sleeping...");
+	std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 
   context->tsfn.Release();
