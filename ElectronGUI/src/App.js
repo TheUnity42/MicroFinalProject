@@ -2,8 +2,6 @@ import React from "react";
 import SlideButton from "./components/SlideButton";
 import LiveChart from "./components/LiveChart";
 
-const backgroundColor = React.createContext("bg-gray-800");
-
 const effectConfigs = {
   fade: {
     min: -1,
@@ -30,8 +28,6 @@ const ChartConfig = {
   maxFrames: 60,
 };
 
-let seed = 0;
-
 class App extends React.Component {
   constructor(props) {
     super(props);
@@ -50,6 +46,11 @@ class App extends React.Component {
     };
 
     this.chartCallback = this.chartCallback.bind(this);
+    this.moduleFunction = this.moduleFunction.bind(this);
+
+    this.handleFade = this.handleFade.bind(this);
+    this.handleDelay = this.handleDelay.bind(this);
+    this.handleReverb = this.handleReverb.bind(this);
   }
 
   chartCallback() {
@@ -61,6 +62,7 @@ class App extends React.Component {
       fade: value,
       useFade: active,
     });
+    this.moduleFunction();
   };
 
   handleDelay = (value, active) => {
@@ -75,6 +77,14 @@ class App extends React.Component {
       reverb: value,
       useReverb: active,
     });
+  };
+
+  moduleFunction = async () => {
+    await paModule.createTSFN(this.moduleCallback);
+  };
+
+  moduleCallback = (...args) => {
+    console.log(...args);
   };
 
   render() {
@@ -97,7 +107,11 @@ class App extends React.Component {
             config={effectConfigs.reverb}
           />
         </div>
-        <LiveChart callback={this.chartCallback} />
+        <div className="relative flex-grow flex flex-col p-2">
+          <div className="relative flex-grow h-1/2 flex flex-row border-2 border-gray-900 shadow-xl">
+            <LiveChart callback={this.chartCallback} />
+          </div>
+        </div>
       </div>
     );
   }

@@ -1,59 +1,83 @@
+#include <chrono>
 #include <napi.h>
+#include <portaudio.h>
+#include <thread>
 
-using namespace Napi;
+constexpr size_t ARRAY_LENGTH = 10;
 
-class BrownianMotion : public Napi::AsyncWorker {
-  public:
-    BrownianMotion(Napi::Function& callback, double start, double end, double step, int seed)
-      : Napi::AsyncWorker(callback), start(start), end(end), step(step), seed(seed) {}
+struct TsfnContext {
 
-    void Execute() {
-      srand(seed);
-      for (double i = start; i < end; i += step) {
-        double r = (double)rand() / RAND_MAX;
-        result.push_back(r);
-      }
+  TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {
+    for(int i = 0; i < ARRAY_LENGTH; i++) {
+      ints[i] = Pa_GetVersion();
     }
+  }
 
-    void OnOK() {
-      Napi::HandleScope scope(Env());
-      
-      Callback().Call({Env().Undefined(), Napi::TypedArrayOf<double>::New(Env(), result.size(), Napi::ArrayBuffer::New(Env(), result.data(), result.size() * sizeof(double)), 0)});
-      // 
-    }
-    private:
-      double start;
-      double end;
-      double step;
-      int seed;
-      std::vector<double> result;
+  Napi::Promise::Deferred deferred;
+
+  std::thread nativeThread;
+
+  int ints[ARRAY_LENGTH];
+
+  Napi::ThreadSafeFunction tsfn;
 };
 
-Napi::String runBrownianMotion(const Napi::CallbackInfo& info) {
-  double start = info[0].As<Napi::Number>().DoubleValue();
-  double end = info[1].As<Napi::Number>().DoubleValue();
-  double step = info[2].As<Napi::Number>().DoubleValue();
-  int seed = info[3].As<Napi::Number>().Int32Value();
-  Napi::Function callback = info[4].As<Napi::Function>();
-  BrownianMotion* worker = new BrownianMotion(callback, start, end, step, seed);
-  worker->Queue();
+// The thread entry point. This takes as its arguments the specific
+// threadsafe-function context created inside the main thread.
+void threadEntry(TsfnContext *context);
 
-  std::string msg = "BrownianMotion started";
-  return Napi::String::New(info.Env(), msg);
+// The thread-safe function finalizer callback. This callback executes
+// at destruction of thread-safe function, taking as arguments the finalizer
+// data and threadsafe-function context.
+void FinalizerCallback(Napi::Env env, void *finalizeData, TsfnContext *context);
+
+// Exported JavaScript function. Creates the thread-safe function and native
+// thread. Promise is resolved in the thread-safe function's finalizer.
+Napi::Value CreateTSFN(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
+
+  auto context = new TsfnContext(env);
+
+  // Create the thread-safe function.
+  context->tsfn = Napi::ThreadSafeFunction::New(env, info[0].As<Napi::Function>(), "tsfn", 1, 1,
+												context, FinalizerCallback, (void *)nullptr);
+
+  // Create the native thread.
+  context->nativeThread = std::thread(threadEntry, context);
+
+  // Return the promise.
+  return context->deferred.Promise();
 }
 
-Napi::String Method(const Napi::CallbackInfo& info) {
-  Napi::Env env = info.Env();
-  return Napi::String::New(env, "world");
+void threadEntry(TsfnContext *context) {
+  
+  auto callback = [](Napi::Env env, Napi::Function jsCallback, int *data) {
+    jsCallback.Call({Napi::Number::New(env, *data)});
+  };
+
+  for (int i = 0; i < ARRAY_LENGTH; i++) {
+    napi_status status = context->tsfn.BlockingCall(&context->ints[i], callback);
+
+    if (status != napi_ok) {
+      Napi::Error::Fatal("ThreadEntry", "Failed to call thread-safe function");
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
+
+  context->tsfn.Release();
+}
+
+void FinalizerCallback(Napi::Env env, void *finalizeData, TsfnContext *context) {
+  // join threads
+  context->nativeThread.join();
+
+  context->deferred.Resolve(Napi::Boolean::New(env, true));
+  delete context;
 }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
-  exports["hello"] = Napi::Function::New(env, Method, std::string("hello"));
-  exports["runBrownianMotion"] = Napi::Function::New(env, runBrownianMotion, std::string("runBrownianMotion"));
-  // exports.Set(Napi::String::New(env, "PaModule"),
-  //             Napi::Function::New(env, Method));
-  // exports.Set(Napi::String::New(env, "runBrownianMotion"),
-  //             Napi::Function::New(env, runBrownianMotion));
+  exports["createTSFN"] = Napi::Function::New(env, CreateTSFN);
   return exports;
 }
 

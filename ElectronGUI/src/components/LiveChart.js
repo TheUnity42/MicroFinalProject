@@ -5,6 +5,7 @@ import React from "react";
 
 const options = {
   responsive: true,
+  maintainAspectRatio: false,
   plugins: {
     legend: {
       display: false,
@@ -104,7 +105,7 @@ class LiveChart extends React.Component {
 
   render() {
     return (
-      <div className="relative flex-grow w-max h-1/2 bg-gray-700 items-center shadow-xl">
+      <div className="relative flex-grow w-full h-full bg-gray-700 items-center shadow-xl">
       <Line data={this.state.data} options={options} ref={(reference) => this.lineRef = reference}/>
     </div>
     );
