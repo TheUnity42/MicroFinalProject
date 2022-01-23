@@ -1,5 +1,5 @@
 window.ipcRenderer = require("electron").ipcRenderer;
 
-const PaModule = require('pa-module');
+const effectslib = require("effectslib");
 const { contextBridge } = require('electron');
-contextBridge.exposeInMainWorld('paModule', PaModule);
+contextBridge.exposeInMainWorld("effectslib", effectslib);

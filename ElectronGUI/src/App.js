@@ -99,7 +99,7 @@ class App extends React.Component {
 
   handlePlay = (play) => {
     if (play) {
-      return window.paModule.simplePlayback(this.moduleCallback, 0);
+      return window.effectslib.simplePlayback(this.moduleCallback, 0);
     } else {
       return Promise.resolve();
     }

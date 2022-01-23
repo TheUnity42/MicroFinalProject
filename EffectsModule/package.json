@@ -1,0 +1,21 @@
+{
+  "main": "lib/binding.js",
+  "dependencies": {
+    "node": "^17.3.1",
+    "node-addon-api": "^1.1.0",
+    "node-gyp": "^8.4.1"
+  },
+  "scripts": {
+    "test": "node --napi-modules ./test/test_binding.js",
+    "build-release": "npm run build --release",
+    "build-debug": "npm run build --debug",
+    "build": "node-gyp rebuild --target=16.0.7 --arch=x64 --dist-url=https://electronjs.org/headers",
+    "install": "echo install"
+  },
+  "gypfile": true,
+  "name": "effectslib",
+  "version": "1.0.0",
+  "author": "TalonH",
+  "license": "ISC",
+  "description": ""
+}
