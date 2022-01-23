@@ -20,11 +20,11 @@ RMDIR /S /Q "build"
 
 IF NOT EXIST "resources" (
     mkdir "resources"
-    CALL tar -xf "../Resources-Win-x64.zip" -C "resources"
+    CALL tar -xzvf ../Resources-x64.tar.gz
 )
 
 CALL npm install
-IF DEBUG==1 (
+IF [DEBUG]==1 (
     CALL npm run build-debug
 ) ELSE (
     CALL npm run build-release
@@ -33,7 +33,7 @@ IF DEBUG==1 (
 CD "../ElectronGUI"
 CALL npm install
 
-IF DEBUG==1 (
+IF [DEBUG]==1 (
     goto exit
 ) ELSE (
     CALL npm run build
